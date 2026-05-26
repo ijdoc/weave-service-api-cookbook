@@ -31,6 +31,7 @@ PROJECT_ID = f"{os.environ['WANDB_ENTITY']}/{os.environ['WANDB_PROJECT']}"
 AUTH = ("api", os.environ["WANDB_API_KEY"])
 
 op_name = "recipe-01-start-call"
+attributes = {"cookbook.language": "python", "cookbook.recipe": "01_start_call"}
 inputs = {"question": "What is the capital of France?"}
 output = {"answer": "Paris"}
 
@@ -43,7 +44,7 @@ r = requests.post(
             "project_id": PROJECT_ID,
             "op_name": op_name,
             "started_at": datetime.now(timezone.utc).isoformat(),
-            "attributes": {},
+            "attributes": attributes,
             "inputs": inputs,
         }
     },
@@ -89,6 +90,8 @@ else:
     sys.exit(f"FAIL: Call {call_id} not visible/finished after 5 reads")
 
 assert call["op_name"] == op_name, f"op_name: {call['op_name']!r}"
+for key, value in attributes.items():
+    assert call["attributes"].get(key) == value, f"attribute {key}: {call['attributes'].get(key)!r}"
 assert call["inputs"] == inputs, f"inputs: {call['inputs']!r}"
 assert call["output"] == output, f"output: {call['output']!r}"
 assert call["trace_id"] == trace_id, f"trace_id: {call['trace_id']!r}"
