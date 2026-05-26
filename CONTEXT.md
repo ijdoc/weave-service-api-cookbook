@@ -9,8 +9,12 @@ The HTTP interface exposed by `https://trace.wandb.ai/`. Distinct from the Pytho
 _Avoid_: REST API (synonymous but not the term W&B uses), Weave API (ambiguous between SDK and service).
 
 **Call**:
-A single traced operation, identified by an id returned from `/call/start`. Has inputs, outputs, status, and an optional `parent_id`. Plural form (`/calls/...`) appears in query and bulk endpoints.
+A single traced operation, identified by an id returned from `/call/start`. Has inputs, outputs, status, and an optional `parent_id`. After `/call/end`, the Call's attributes, inputs, and output are immutable; only its display name can change (via `/call/update`). Plural form (`/calls/...`) appears in query and bulk endpoints.
 _Avoid_: span (the OpenTelemetry term — not used by the service API), trace (means the tree, not a single node).
+
+**Display name**:
+The user-facing label for a Call in the Weave UI. Distinct from `op_name`, which identifies the *operation* a Call represents and serves as the default label when no display name is set. Settable at `/call/start` and changeable later via `/call/update`.
+_Avoid_: conflating with `op_name` — display name is a presentation concern; `op_name` is identity.
 
 **Trace**:
 The tree of Calls rooted at a top-level Call (one without a `parent_id`). Built implicitly by chaining `parent_id` across `/call/start` requests.
