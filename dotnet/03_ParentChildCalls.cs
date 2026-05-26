@@ -126,7 +126,7 @@ async Task EndCall(string callId, object output)
 
 // Open the parent (top-level: no parent_id, no explicit trace_id).
 // The server assigns a trace_id which we propagate to children.
-var parent = await StartCall("recipe-03-rag-pipeline", new { query = "Where is the Eiffel Tower?" });
+var parent = await StartCall("recipe-03-rag-pipeline", new { question = "Where is the Eiffel Tower?" });
 var parentId = parent["id"]!.GetValue<string>();
 var traceId = parent["trace_id"]!.GetValue<string>();
 Console.WriteLine($"Started parent: id={parentId} trace_id={traceId}");
@@ -134,7 +134,7 @@ Console.WriteLine($"Started parent: id={parentId} trace_id={traceId}");
 // Open + finish the first child (retrieve), passing the parent's id and trace_id.
 var retrieve = await StartCall(
     "recipe-03-retrieve",
-    new { query = "Where is the Eiffel Tower?" },
+    new { question = "Where is the Eiffel Tower?" },
     parentId: parentId,
     traceId: traceId);
 var retrieveId = retrieve["id"]!.GetValue<string>();
@@ -145,7 +145,7 @@ Console.WriteLine($"Ended   child 1: id={retrieveId}");
 // Open + finish the second child (generate).
 var generate = await StartCall(
     "recipe-03-generate",
-    new { docs = new[] { "Paris", "France" }, query = "Where is the Eiffel Tower?" },
+    new { docs = new[] { "Paris", "France" }, question = "Where is the Eiffel Tower?" },
     parentId: parentId,
     traceId: traceId);
 var generateId = generate["id"]!.GetValue<string>();
