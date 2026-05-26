@@ -137,7 +137,10 @@ for (var attempt = 0; attempt < 5; attempt++)
         sort_by = new[] { new { field = "started_at", direction = "desc" } },
         limit = 50,
     });
-    found = rows.Find(c => c["id"]?.GetValue<string?>() == callId);
+    // Require ended_at populated so we don't race the write-to-read
+    // propagation and read a half-finalized row.
+    found = rows.Find(c => c["id"]?.GetValue<string?>() == callId
+                            && c["ended_at"]?.GetValue<string?>() != null);
     if (found != null) break;
     Thread.Sleep(1000);
 }

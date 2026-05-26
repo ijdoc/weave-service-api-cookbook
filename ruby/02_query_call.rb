@@ -110,7 +110,9 @@ found = nil
     "sort_by" => [{ "field" => "started_at", "direction" => "desc" }],
     "limit" => 50,
   })
-  found = results.find { |c| c["id"] == call_id }
+  # Require ended_at populated so we don't race the write-to-read
+  # propagation and read a half-finalized row.
+  found = results.find { |c| c["id"] == call_id && c["ended_at"] }
   break if found
 
   sleep 1

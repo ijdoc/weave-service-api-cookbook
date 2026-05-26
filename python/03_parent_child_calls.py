@@ -143,7 +143,9 @@ for _ in range(5):
         r.raise_for_status()
         rows = [json.loads(line) for line in r.iter_lines(decode_unicode=True) if line]
     found_ids = {c["id"]: c for c in rows}
-    if expected <= found_ids.keys():
+    # Require all three calls visible AND finalized (ended_at populated)
+    # so we don't race write-to-read propagation on inner-field reads.
+    if expected <= found_ids.keys() and all(found_ids[i].get("ended_at") for i in expected):
         break
     time.sleep(1)
 
