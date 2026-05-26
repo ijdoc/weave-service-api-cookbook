@@ -144,7 +144,9 @@ found_by_id = {}
     "filter" => { "trace_ids" => [trace_id] },
   })
   found_by_id = rows.each_with_object({}) { |c, h| h[c["id"]] = c }
-  break if (expected - found_by_id.keys).empty?
+  # Require all three visible AND finalized (ended_at populated) so we
+  # don't race write-to-read propagation on inner-field reads.
+  break if (expected - found_by_id.keys).empty? && expected.all? { |i| found_by_id[i]["ended_at"] }
 
   sleep 1
 end

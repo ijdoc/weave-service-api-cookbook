@@ -100,7 +100,9 @@ for _ in range(5):
             if not line:
                 continue
             call = json.loads(line)
-            if call["id"] == call_id:
+            # Require ended_at populated so we don't race the write-to-read
+            # propagation and read a half-finalized row.
+            if call["id"] == call_id and call.get("ended_at"):
                 found = call
                 break
     if found is not None:

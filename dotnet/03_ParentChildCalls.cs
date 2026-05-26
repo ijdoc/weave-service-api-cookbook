@@ -173,10 +173,18 @@ for (var attempt = 0; attempt < 5; attempt++)
         var id = c["id"]?.GetValue<string?>();
         if (id != null) foundById[id] = c;
     }
-    var allPresent = true;
+    // Require all three visible AND finalized (ended_at populated) so we
+    // don't race write-to-read propagation on inner-field reads.
+    var allReady = true;
     foreach (var id in expected)
-        if (!foundById.ContainsKey(id)) { allPresent = false; break; }
-    if (allPresent) break;
+    {
+        if (!foundById.TryGetValue(id, out var c) || c["ended_at"]?.GetValue<string?>() is null)
+        {
+            allReady = false;
+            break;
+        }
+    }
+    if (allReady) break;
     Thread.Sleep(1000);
 }
 
