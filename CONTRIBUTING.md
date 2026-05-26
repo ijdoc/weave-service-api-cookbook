@@ -55,6 +55,17 @@ A recipe must:
 3. Use only the language's stdlib HTTP client plus minimal idiomatic helpers (`requests` in Python, `Net::HTTP` in Ruby, `HttpClient` in C#). No client wrappers, no SDKs.
 4. Be exercisable from CI: must run to exit 0 in under 60 seconds against a live W&B test project given only `WANDB_API_KEY`, `WANDB_ENTITY`, `WANDB_PROJECT` env vars.
 
+### Trace attribute convention
+
+Every Call a recipe creates must set these `attributes` on `/call/start`:
+
+| Attribute | Value | Notes |
+|---|---|---|
+| `cookbook.language` | `"python"`, `"ruby"`, or `"dotnet"` | Matches the language directory the recipe lives in. |
+| `cookbook.recipe` | recipe id, e.g. `"01_start_call"` | snake_case, same across all language ports of the recipe (so `01_StartCall.cs` still uses `"01_start_call"` here). |
+
+These let you filter traces by language or by recipe in the W&B UI, and the verification block should assert them as part of the round-trip check. The `cookbook.*` namespace is reserved for this repo's conventions — don't put anything else under it.
+
 ## Adding language support
 
 Out of scope for v1. New languages should be proposed via an issue first.
