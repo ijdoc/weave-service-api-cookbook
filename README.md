@@ -20,6 +20,21 @@ For language-agnostic concepts (Call, Trace, Evaluation Object, Evaluation Run, 
 
 For architectural decisions (why no SDK, why language-major, how verification works), see [`docs/adr/`](docs/adr/).
 
+## Setup
+
+Every recipe assumes these env vars:
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `WANDB_API_KEY` | yes | — | Your W&B API key. Used as the basic-auth password; the username is the literal string `api`. |
+| `WANDB_ENTITY` | yes | — | The W&B entity (user or team) that owns the test project. |
+| `WANDB_PROJECT` | yes | — | The W&B project name. Recipes construct `project_id` as `<entity>/<project>`. |
+| `WEAVE_SERVICE_URL` | no | `https://trace.wandb.ai` | Override for dedicated cloud or self-managed deployments. Distinct from `WANDB_BASE_URL`, which the W&B SDK uses for the core API (`api.wandb.ai`). |
+
+Get your API key at https://wandb.ai/authorize. You don't need to create the project beforehand — W&B auto-creates a project on the first trace it receives.
+
+Per-language setup (`uv`, `bundler`, `dotnet`) is documented in each language directory's README.
+
 ## Audience
 
 You're building an application that needs Weave tracing and/or evaluation, and either:
