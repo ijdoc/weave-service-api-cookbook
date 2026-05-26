@@ -63,8 +63,9 @@ Every Call a recipe creates must set these `attributes` on `/call/start`:
 |---|---|---|
 | `cookbook.language` | `"python"`, `"ruby"`, or `"dotnet"` | Matches the language directory the recipe lives in. |
 | `cookbook.recipe` | recipe id, e.g. `"01_start_call"` | snake_case, same across all language ports of the recipe (so `01_StartCall.cs` still uses `"01_start_call"` here). |
+| `cookbook.environment` | `"dev"` or `"ci"` | Sourced from the `COOKBOOK_ENVIRONMENT` env var, defaulting to `"dev"` when unset. CI sets it to `"ci"` so CI-created traces are filterable separately from local dev traces in the W&B UI. |
 
-These let you filter traces by language or by recipe in the W&B UI, and the verification block should assert them as part of the round-trip check. The `cookbook.*` namespace is reserved for this repo's conventions — don't put anything else under it.
+These let you filter traces by language, recipe, or environment in the W&B UI, and the verification block should assert each one as part of the round-trip check. The `cookbook.*` namespace is reserved for this repo's conventions — don't put anything else under it.
 
 ## Adding language support
 

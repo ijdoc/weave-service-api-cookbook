@@ -46,6 +46,7 @@ var attributes = new Dictionary<string, object>
 {
     ["cookbook.language"] = "dotnet",
     ["cookbook.recipe"] = "01_start_call",
+    ["cookbook.environment"] = Environment.GetEnvironmentVariable("COOKBOOK_ENVIRONMENT") ?? "dev",
 };
 var inputs = new Dictionary<string, object> { ["question"] = "What is the capital of France?" };
 var output = new Dictionary<string, object> { ["answer"] = "Paris" };

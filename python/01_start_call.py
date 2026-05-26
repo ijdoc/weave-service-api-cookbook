@@ -31,7 +31,11 @@ PROJECT_ID = f"{os.environ['WANDB_ENTITY']}/{os.environ['WANDB_PROJECT']}"
 AUTH = ("api", os.environ["WANDB_API_KEY"])
 
 op_name = "recipe-01-start-call"
-attributes = {"cookbook.language": "python", "cookbook.recipe": "01_start_call"}
+attributes = {
+    "cookbook.language": "python",
+    "cookbook.recipe": "01_start_call",
+    "cookbook.environment": os.environ.get("COOKBOOK_ENVIRONMENT", "dev"),
+}
 inputs = {"question": "What is the capital of France?"}
 output = {"answer": "Paris"}
 
