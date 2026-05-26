@@ -30,6 +30,7 @@ OP_NAME = "recipe-01-start-call"
 ATTRIBUTES = {
   "cookbook.language" => "ruby",
   "cookbook.recipe" => "01_start_call",
+  "cookbook.environment" => ENV.fetch("COOKBOOK_ENVIRONMENT", "dev"),
 }.freeze
 INPUTS = { "question" => "What is the capital of France?" }.freeze
 OUTPUT = { "answer" => "Paris" }.freeze
