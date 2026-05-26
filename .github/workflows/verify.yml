@@ -1,0 +1,64 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+  WANDB_ENTITY: ${{ secrets.WANDB_ENTITY }}
+  WANDB_PROJECT: ${{ vars.WANDB_PROJECT }}
+  COOKBOOK_ENVIRONMENT: ci
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Run Python recipes
+        run: |
+          shopt -s nullglob
+          for script in python/[0-9]*.py; do
+            echo "::group::$script"
+            uv run "$script"
+            echo "::endgroup::"
+          done
+
+  ruby:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      - name: Run Ruby recipes
+        run: |
+          shopt -s nullglob
+          for script in ruby/[0-9]*.rb; do
+            echo "::group::$script"
+            ruby "$script"
+            echo "::endgroup::"
+          done
+
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Run .NET recipes
+        run: |
+          shopt -s nullglob
+          for script in dotnet/[0-9]*.cs; do
+            echo "::group::$script"
+            dotnet run "$script"
+            echo "::endgroup::"
+          done
