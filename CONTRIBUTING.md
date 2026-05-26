@@ -55,6 +55,10 @@ A recipe must:
 3. Use only the language's stdlib HTTP client plus minimal idiomatic helpers (`requests` in Python, `Net::HTTP` in Ruby, `HttpClient` in C#). No client wrappers, no SDKs.
 4. Be exercisable from CI: must run to exit 0 in under 60 seconds against a live W&B test project given only `WANDB_API_KEY`, `WANDB_ENTITY`, `WANDB_PROJECT` env vars.
 
+### Input key convention
+
+For Q&A-style traces, use `question` as the inputs key — matches recipes 01–04 and keeps simple examples readable across the cookbook. Recipes with structured inputs (retrieval queries, scorer payloads, evaluation rows) use shape-appropriate keys instead. Consistency across language ports of the same recipe is the hard rule; the Q&A default is a soft convention for the easy cases.
+
 ### Trace attribute convention
 
 Every Call a recipe creates must set these `attributes` on `/call/start`:
