@@ -26,7 +26,7 @@ Each recipe ends with an inline verification block (per-language equivalent of `
 
 CI is a single shell loop that invokes each script via its language runtime (`python`, `bundle exec ruby`, `dotnet run`). The contract is just exit code.
 
-CI runs against a dedicated test entity + project. Secrets (`WANDB_API_KEY`, `WANDB_ENTITY`, `WANDB_PROJECT`) come from repo secrets.
+CI runs against a dedicated test entity + project. `WANDB_API_KEY` and `WANDB_ENTITY` come from repo secrets; `WANDB_PROJECT` is a repo variable (the test project name isn't sensitive).
 
 ## Consequences
 

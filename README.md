@@ -30,6 +30,7 @@ Every recipe assumes these env vars:
 | `WANDB_ENTITY` | yes | — | The W&B entity (user or team) that owns the test project. |
 | `WANDB_PROJECT` | yes | — | The W&B project name. Recipes construct `project_id` as `<entity>/<project>`. |
 | `WEAVE_SERVICE_URL` | no | `https://trace.wandb.ai` | Override for dedicated cloud or self-managed deployments. Distinct from `WANDB_BASE_URL`, which the W&B SDK uses for the core API (`api.wandb.ai`). |
+| `COOKBOOK_ENVIRONMENT` | no | `dev` | Tags every Call this cookbook creates with `cookbook.environment` so dev and CI traces are filterable separately in the W&B UI. CI sets it to `ci`. See [`CONTRIBUTING.md`](CONTRIBUTING.md). |
 
 Get your API key at https://wandb.ai/authorize. You don't need to create the project beforehand — W&B auto-creates a project on the first trace it receives.
 
