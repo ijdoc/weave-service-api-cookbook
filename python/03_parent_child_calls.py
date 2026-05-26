@@ -92,7 +92,7 @@ def end_call(call_id: str, output: dict) -> None:
 
 # Open the parent (top-level: no parent_id, no explicit trace_id).
 # The server assigns a trace_id which we propagate to children.
-parent = start_call("recipe-03-rag-pipeline", {"query": "Where is the Eiffel Tower?"})
+parent = start_call("recipe-03-rag-pipeline", {"question": "Where is the Eiffel Tower?"})
 parent_id = parent["id"]
 trace_id = parent["trace_id"]
 print(f"Started parent: id={parent_id} trace_id={trace_id}")
@@ -100,7 +100,7 @@ print(f"Started parent: id={parent_id} trace_id={trace_id}")
 # Open + finish the first child (retrieve), passing the parent's id and trace_id.
 retrieve = start_call(
     "recipe-03-retrieve",
-    {"query": "Where is the Eiffel Tower?"},
+    {"question": "Where is the Eiffel Tower?"},
     parent_id=parent_id,
     trace_id=trace_id,
 )
@@ -112,7 +112,7 @@ print(f"Ended   child 1: id={retrieve_id}")
 # Open + finish the second child (generate).
 generate = start_call(
     "recipe-03-generate",
-    {"docs": ["Paris", "France"], "query": "Where is the Eiffel Tower?"},
+    {"docs": ["Paris", "France"], "question": "Where is the Eiffel Tower?"},
     parent_id=parent_id,
     trace_id=trace_id,
 )
