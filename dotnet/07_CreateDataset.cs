@@ -90,7 +90,7 @@ async Task<JsonNode> GetJson(string path)
     return string.IsNullOrEmpty(responseBody) ? new JsonObject() : JsonNode.Parse(responseBody)!;
 }
 
-var datasetName = $"recipe-07-dataset-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+var datasetName = $"recipe-07-dataset-dotnet-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 var datasetDescription = $"Capital cities for evaluation (run at {DateTime.UtcNow:O})";
 var datasetRows = new[]
 {

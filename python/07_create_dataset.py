@@ -57,7 +57,7 @@ PROJECT = os.environ["WANDB_PROJECT"]
 PROJECT_ID = f"{ENTITY}/{PROJECT}"
 AUTH = ("api", os.environ["WANDB_API_KEY"])
 
-dataset_name = f"recipe-07-dataset-{int(time.time())}"
+dataset_name = f"recipe-07-dataset-python-{int(time.time())}"
 dataset_description = f"Capital cities for evaluation (run at {datetime.now(timezone.utc).isoformat()})"
 dataset_rows = [
     {"question": "What is the capital of France?", "answer": "Paris"},
