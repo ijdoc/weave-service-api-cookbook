@@ -1,4 +1,4 @@
-// Recipe 07: create a Dataset and read its rows back.
+// Recipe 09: create a Dataset and read its rows back.
 //
 // Demonstrates the v2 Dataset endpoints plus the Table read needed to
 // walk the rows:
@@ -31,7 +31,7 @@
 //   lives under `val`.
 //
 // Run:
-//   dotnet run dotnet/07_CreateDataset.cs
+//   dotnet run dotnet/09_CreateDataset.cs
 
 using System;
 using System.Collections.Generic;
@@ -90,7 +90,7 @@ async Task<JsonNode> GetJson(string path)
     return string.IsNullOrEmpty(responseBody) ? new JsonObject() : JsonNode.Parse(responseBody)!;
 }
 
-var datasetName = $"recipe-07-dataset-dotnet-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+var datasetName = $"recipe-09-dataset-dotnet-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 var datasetDescription = $"Capital cities for evaluation (run at {DateTime.UtcNow:O})";
 var datasetRows = new[]
 {
