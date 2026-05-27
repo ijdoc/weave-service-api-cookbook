@@ -2,7 +2,7 @@
 # requires-python = ">=3.10"
 # dependencies = ["requests>=2.31"]
 # ///
-"""Recipe 07: create a Dataset and read its rows back.
+"""Recipe 09: create a Dataset and read its rows back.
 
 Demonstrates the v2 Dataset endpoints plus the Table read needed to
 walk the rows:
@@ -35,7 +35,7 @@ Three wire-level points worth knowing:
   lives under `val`.
 
 Run:
-    uv run python/07_create_dataset.py
+    uv run python/09_create_dataset.py
 """
 import os
 import re
@@ -57,7 +57,7 @@ PROJECT = os.environ["WANDB_PROJECT"]
 PROJECT_ID = f"{ENTITY}/{PROJECT}"
 AUTH = ("api", os.environ["WANDB_API_KEY"])
 
-dataset_name = f"recipe-07-dataset-python-{int(time.time())}"
+dataset_name = f"recipe-09-dataset-python-{int(time.time())}"
 dataset_description = f"Capital cities for evaluation (run at {datetime.now(timezone.utc).isoformat()})"
 dataset_rows = [
     {"question": "What is the capital of France?", "answer": "Paris"},

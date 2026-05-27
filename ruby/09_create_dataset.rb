@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Recipe 07: create a Dataset and read its rows back.
+# Recipe 09: create a Dataset and read its rows back.
 #
 # Demonstrates the v2 Dataset endpoints plus the Table read needed to
 # walk the rows:
@@ -34,7 +34,7 @@
 #   lives under `val`.
 #
 # Run:
-#   ruby ruby/07_create_dataset.rb
+#   ruby ruby/09_create_dataset.rb
 
 require "json"
 require "net/http"
@@ -72,7 +72,7 @@ def get_json(path)
   request_json(Net::HTTP::Get.new(uri), path)
 end
 
-dataset_name = "recipe-07-dataset-ruby-#{Time.now.to_i}"
+dataset_name = "recipe-09-dataset-ruby-#{Time.now.to_i}"
 dataset_description = "Capital cities for evaluation (run at #{Time.now.utc.iso8601})"
 dataset_rows = [
   { "question" => "What is the capital of France?", "answer" => "Paris" },
