@@ -55,6 +55,9 @@ class Model(weave.Model):    # or analogous shape per object kind
         Byte-for-byte reference (SHA256 of the recipe file):
             <digest>
 
+        To verify a local copy of the file matches (POSIX shell):
+            shasum -a 256 <relative path> | cut -c1-16
+
         This Python op is a metadata handle, not the real model —
         running it raises NotImplementedError by design.
         """

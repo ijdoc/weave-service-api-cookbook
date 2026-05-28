@@ -114,6 +114,9 @@ def predict(self, question):
     Byte-for-byte reference (SHA256 of the recipe file):
         {recipeSha}
 
+    To verify a local copy of the file matches (POSIX shell):
+        shasum -a 256 {recipePath} | cut -c1-16
+
     This Python op is a metadata handle, not the real model — running
     it raises NotImplementedError by design.
     \"\"\"
