@@ -98,7 +98,11 @@ using (var sha = SHA256.Create())
     recipeSha = Convert.ToHexString(sha.ComputeHash(recipeBytes)).ToLowerInvariant().Substring(0, 16);
 }
 
-string opSource = $"""
+// C# 11 raw-string-with-interpolation: the outer ${"""" delimiter (four
+// quotes) lets us include literal triple-quote (""") for the Python
+// docstring without escaping. Inside this literal, backslashes are
+// literal characters — using \" would actually upload a backslash.
+string opSource = $""""
 # Cookbook scaffold (dotnet)
 # Source: {recipePath}
 # SHA256: {recipeSha}
@@ -108,7 +112,7 @@ import weave
 
 @weave.op
 def predict(self, question):
-    \"\"\"The actual predict implementation lives in:
+    """The actual predict implementation lives in:
         {recipePath}
 
     Byte-for-byte reference (SHA256 of the recipe file):
@@ -119,13 +123,13 @@ def predict(self, question):
 
     This Python op is a metadata handle, not the real model — running
     it raises NotImplementedError by design.
-    \"\"\"
+    """
     raise NotImplementedError(
         "This op is a Python scaffold uploaded from a non-Python recipe. "
         "See the docstring above for the real source-language file and a "
         "verifiable byte-for-byte reference (SHA256)."
     )
-""";
+"""";
 
 using var http = new HttpClient();
 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
