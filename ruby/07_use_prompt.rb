@@ -1,20 +1,23 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Recipe 07: publish a Prompt + reference it from a Call.
+# Recipe 07: publish a Prompt + reference it from a Call + tag/alias it.
 #
-# Introduces two new things that recipes 08-13 build on:
+# Introduces four new things that recipes 08-13 build on:
 #
-#     POST /obj/create   -> the generic Weave Object endpoint, used
-#                           here to publish a StringPrompt
-#     POST /obj/read     -> read it back by (object_id, digest)
+#     POST /obj/create                            -> generic Weave Object
+#                                                    endpoint; here, publish
+#                                                    a StringPrompt
+#     POST /obj/read                              -> read it back
+#     PUT  /objs/{id}/versions/{digest}/tags      -> add version tags
+#     PUT  /objs/{id}/aliases                     -> set named pointers
 #
 #     (and the existing /call/start + /call/end, but now with
 #      `inputs.prompt` = a weave:// ref to the Prompt — the "object
 #      ref in trace inputs" pattern that unlocks Model.predict,
 #      Scorer Ops, and the eval flow)
 #
-# Three wire-level points worth knowing:
+# Five wire-level points worth knowing:
 #
 # - The Object endpoint is *flat under an `obj` wrapper*:
 #       {"obj" => {"project_id", "object_id", "val"}}
@@ -36,6 +39,24 @@
 #   (digest, version_index). Editing the content (or any other val
 #   field) bumps the version. No timestamping needed; this recipe's
 #   per-language identity comes from a different `object_id` per port.
+# - *Tags vs aliases* — both UI-visible Object metadata, separate from
+#   val (so changing them does NOT bump the version):
+#     * Tags are per-VERSION, additive labels (e.g., "dev", "production",
+#       "reviewed"). PUT adds, POST .../remove removes. Many versions
+#       can share a tag.
+#     * Aliases are per-object_id named pointers — re-PUTting an alias
+#       detaches it from the prior version. The server auto-maintains
+#       a `latest` alias on the most-recent version; do not set it
+#       yourself.
+#   These same endpoints apply to any Weave Object (Model, Dataset,
+#   Evaluation, Scorer Op), not just Prompts.
+# - *Val "extras"* — you can also stuff arbitrary JSON fields directly
+#   into val (any type, nested hashes, etc.) alongside the canonical
+#   `content`/`description`/`name`. They round-trip cleanly and are
+#   queryable via /objs/query filters, but DO NOT appear in dedicated
+#   UI columns or panels — only `tags` and `aliases` do. Use val
+#   extras for structured machine-queryable metadata; use tags/aliases
+#   for UI-visible labels and pointers.
 #
 # Run:
 #   ruby ruby/07_use_prompt.rb
@@ -54,9 +75,9 @@ abort "Missing required env vars: #{missing.join(", ")}. See ../README.md#setup.
 PROJECT_ID = "#{ENV.fetch("WANDB_ENTITY")}/#{ENV.fetch("WANDB_PROJECT")}"
 API_KEY = ENV.fetch("WANDB_API_KEY")
 
-def post_json(path, body)
+def request_json(method_class, path, body)
   uri = URI.join(BASE_URL, path)
-  req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json")
+  req = method_class.new(uri, "Content-Type" => "application/json")
   req.basic_auth("api", API_KEY)
   req.body = JSON.dump(body)
   res = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https") { |http| http.request(req) }
@@ -64,7 +85,22 @@ def post_json(path, body)
   res.body.empty? ? {} : JSON.parse(res.body)
 end
 
+def post_json(path, body)
+  request_json(Net::HTTP::Post, path, body)
+end
+
+def put_json(path, body)
+  request_json(Net::HTTP::Put, path, body)
+end
+
 # 1) Publish a StringPrompt via the generic Object endpoint.
+#
+# val "extras": you could add arbitrary JSON fields here alongside the
+# canonical ones below (e.g., "owner_email" => "alice@example.com",
+# "model_target" => "gpt-4o-mini", "custom_attributes" => {...}).
+# They'd round-trip cleanly and be queryable via /objs/query filters,
+# but would NOT appear in dedicated UI columns. For UI-visible
+# metadata, use the tags + aliases steps further down.
 prompt_object_id = "recipe-07-prompt-ruby"
 prompt_val = {
   "_bases" => ["Prompt", "Object", "BaseModel"],
@@ -86,18 +122,56 @@ prompt_ref = "weave:///#{PROJECT_ID}/object/#{prompt_object_id}:#{prompt_digest}
 puts "Published: #{prompt_object_id} digest=#{prompt_digest[0, 12]}…"
 puts "  ref: #{prompt_ref}"
 
-# 2) Read it back and assert val + derived class fields round-trip.
+# 2) Tag this version with the current cookbook environment ("dev" or
+# "ci"). Tags are a first-class, per-version, UI-visible metadata
+# channel — separate from val. PUT is additive (re-runs are no-ops if
+# the tag is already present); removal uses POST /objs/.../tags/remove
+# with the same body shape. The same endpoint applies to any Weave
+# Object (Model, Dataset, Evaluation, Scorer Op).
+env_tag = ENV.fetch("COOKBOOK_ENVIRONMENT", "dev")
+tags_to_add = [env_tag, "ruby"]
+put_json("/objs/#{prompt_object_id}/versions/#{prompt_digest}/tags", {
+  "project_id" => PROJECT_ID,
+  "tags" => tags_to_add,
+})
+puts "Tagged:    #{tags_to_add.inspect} -> version #{prompt_digest[0, 12]}…"
+
+# 3) Add named aliases pointing at this version. Aliases are
+# per-object_id named pointers — typical examples are deployment
+# targets ("staging", "production") and release candidates
+# ("v1-candidate"). PUT adds; use POST /objs/{id}/aliases/remove to
+# detach an alias. The server also auto-maintains a `latest` alias on
+# the most-recent version; do not try to set "latest" yourself.
+aliases_to_set = ["staging", "v1-candidate"]
+put_json("/objs/#{prompt_object_id}/aliases", {
+  "project_id" => PROJECT_ID,
+  "digest" => prompt_digest,
+  "aliases" => aliases_to_set,
+})
+puts "Aliased:   #{aliases_to_set.inspect} -> version #{prompt_digest[0, 12]}…"
+
+# 4) Read it back (with tags + aliases) and assert everything
+# round-trips.
 read_back = post_json("/obj/read", {
   "project_id" => PROJECT_ID,
   "object_id" => prompt_object_id,
   "digest" => prompt_digest,
+  "include_tags_and_aliases" => true,
 })
 obj = read_back.fetch("obj")
 abort "_class_name: #{obj["val"]["_class_name"].inspect}" unless obj["val"]["_class_name"] == "StringPrompt"
 abort "content: #{obj["val"]["content"].inspect}" unless obj["val"]["content"] == prompt_val["content"]
 abort "base_object_class: #{obj["base_object_class"].inspect}" unless obj["base_object_class"] == "Prompt"
 abort "leaf_object_class: #{obj["leaf_object_class"].inspect}" unless obj["leaf_object_class"] == "StringPrompt"
-puts "Read:      version=#{obj["version_index"]} base_object_class=#{obj["base_object_class"].inspect} leaf_object_class=#{obj["leaf_object_class"].inspect}"
+tags = obj["tags"] || []
+aliases = obj["aliases"] || []
+tags_to_add.each do |t|
+  abort "tag #{t.inspect} missing from #{tags.inspect}" unless tags.include?(t)
+end
+aliases_to_set.each do |a|
+  abort "alias #{a.inspect} missing from #{aliases.inspect}" unless aliases.include?(a)
+end
+puts "Read:      version=#{obj["version_index"]} tags=#{tags.inspect} aliases=#{aliases.inspect}"
 
 # 3) Open a Call whose `inputs.prompt` is the Prompt's weave:// ref.
 question = "What is the capital of France?"
