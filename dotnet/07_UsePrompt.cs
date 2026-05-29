@@ -1,17 +1,20 @@
-// Recipe 07: publish a Prompt + reference it from a Call.
+// Recipe 07: publish a Prompt + reference it from a Call + tag/alias it.
 //
-// Introduces two new things that recipes 08-13 build on:
+// Introduces four new things that recipes 08-13 build on:
 //
-//     POST /obj/create   -> the generic Weave Object endpoint, used
-//                           here to publish a StringPrompt
-//     POST /obj/read     -> read it back by (object_id, digest)
+//     POST /obj/create                            -> generic Weave Object
+//                                                    endpoint; here, publish
+//                                                    a StringPrompt
+//     POST /obj/read                              -> read it back
+//     PUT  /objs/{id}/versions/{digest}/tags      -> add version tags
+//     PUT  /objs/{id}/aliases                     -> set named pointers
 //
 //     (and the existing /call/start + /call/end, but now with
 //      `inputs.prompt` = a weave:// ref to the Prompt — the "object
 //      ref in trace inputs" pattern that unlocks Model.predict,
 //      Scorer Ops, and the eval flow)
 //
-// Three wire-level points worth knowing:
+// Five wire-level points worth knowing:
 //
 // - The Object endpoint is *flat under an `obj` wrapper*:
 //       {"obj": {"project_id", "object_id", "val"}}
@@ -33,6 +36,24 @@
 //   (digest, version_index). Editing the content (or any other val
 //   field) bumps the version. No timestamping needed; this recipe's
 //   per-language identity comes from a different `object_id` per port.
+// - *Tags vs aliases* — both UI-visible Object metadata, separate from
+//   val (so changing them does NOT bump the version):
+//     * Tags are per-VERSION, additive labels (e.g., "dev",
+//       "production", "reviewed"). PUT adds, POST .../remove removes.
+//       Many versions can share a tag.
+//     * Aliases are per-object_id named pointers — re-PUTting an alias
+//       detaches it from the prior version. The server auto-maintains
+//       a `latest` alias on the most-recent version; do not set it
+//       yourself.
+//   These same endpoints apply to any Weave Object (Model, Dataset,
+//   Evaluation, Scorer Op), not just Prompts.
+// - *Val "extras"* — you can also stuff arbitrary JSON fields directly
+//   into val (any type, nested dicts, etc.) alongside the canonical
+//   `content`/`description`/`name`. They round-trip cleanly and are
+//   queryable via /objs/query filters, but DO NOT appear in dedicated
+//   UI columns or panels — only `tags` and `aliases` do. Use val
+//   extras for structured machine-queryable metadata; use tags/aliases
+//   for UI-visible labels and pointers.
 //
 // Run:
 //   dotnet run dotnet/07_UsePrompt.cs
@@ -72,17 +93,31 @@ http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
     "Basic",
     Convert.ToBase64String(Encoding.ASCII.GetBytes($"api:{apiKey}")));
 
-async Task<JsonNode> PostJson(string path, object body)
+async Task<JsonNode> SendJson(HttpMethod method, string path, object body)
 {
     var json = JsonSerializer.Serialize(body, jsonOptions);
-    var res = await http.PostAsync(baseUrl + path, new StringContent(json, Encoding.UTF8, "application/json"));
+    using var req = new HttpRequestMessage(method, baseUrl + path)
+    {
+        Content = new StringContent(json, Encoding.UTF8, "application/json"),
+    };
+    var res = await http.SendAsync(req);
     var responseBody = await res.Content.ReadAsStringAsync();
     if (!res.IsSuccessStatusCode)
         throw new HttpRequestException($"HTTP {(int)res.StatusCode} for {path}: {responseBody}");
     return string.IsNullOrEmpty(responseBody) ? new JsonObject() : JsonNode.Parse(responseBody)!;
 }
 
+Task<JsonNode> PostJson(string path, object body) => SendJson(HttpMethod.Post, path, body);
+Task<JsonNode> PutJson(string path, object body) => SendJson(HttpMethod.Put, path, body);
+
 // 1) Publish a StringPrompt via the generic Object endpoint.
+//
+// val "extras": you could add arbitrary JSON fields here alongside
+// the canonical ones below (e.g., "owner_email" = "alice@example.com",
+// "model_target" = "gpt-4o-mini", "custom_attributes" = new {...}).
+// They'd round-trip cleanly and be queryable via /objs/query filters,
+// but would NOT appear in dedicated UI columns. For UI-visible
+// metadata, use the tags + aliases steps further down.
 const string promptObjectId = "recipe-07-prompt-dotnet";
 const string promptContent = "Answer the question concisely: {question}";
 var promptVal = new Dictionary<string, object?>
@@ -108,12 +143,43 @@ var promptRef = $"weave:///{projectId}/object/{promptObjectId}:{promptDigest}";
 Console.WriteLine($"Published: {promptObjectId} digest={promptDigest.Substring(0, 12)}…");
 Console.WriteLine($"  ref: {promptRef}");
 
-// 2) Read it back and assert val + derived class fields round-trip.
+// 2) Tag this version with the current cookbook environment ("dev" or
+// "ci"). Tags are a first-class, per-version, UI-visible metadata
+// channel — separate from val. PUT is additive (re-runs are no-ops if
+// the tag is already present); removal uses POST /objs/.../tags/remove
+// with the same body shape. The same endpoint applies to any Weave
+// Object (Model, Dataset, Evaluation, Scorer Op).
+var envTag = Environment.GetEnvironmentVariable("COOKBOOK_ENVIRONMENT") ?? "dev";
+var tagsToAdd = new[] { envTag, "dotnet" };
+await PutJson($"/objs/{promptObjectId}/versions/{promptDigest}/tags", new
+{
+    project_id = projectId,
+    tags = tagsToAdd,
+});
+Console.WriteLine($"Tagged:    [{string.Join(", ", tagsToAdd.Select(t => $"\"{t}\""))}] -> version {promptDigest.Substring(0, 12)}…");
+
+// 3) Add named aliases pointing at this version. Aliases are
+// per-object_id named pointers — typical examples are deployment
+// targets ("staging", "production") and release candidates
+// ("v1-candidate"). PUT adds; use POST /objs/{id}/aliases/remove to
+// detach an alias. The server also auto-maintains a `latest` alias
+// on the most-recent version; do not try to set "latest" yourself.
+var aliasesToSet = new[] { "staging", "v1-candidate" };
+await PutJson($"/objs/{promptObjectId}/aliases", new
+{
+    project_id = projectId,
+    digest = promptDigest,
+    aliases = aliasesToSet,
+});
+Console.WriteLine($"Aliased:   [{string.Join(", ", aliasesToSet.Select(a => $"\"{a}\""))}] -> version {promptDigest.Substring(0, 12)}…");
+
+// 4) Read it back (with tags + aliases) and assert everything round-trips.
 var readBack = await PostJson("/obj/read", new
 {
     project_id = projectId,
     object_id = promptObjectId,
     digest = promptDigest,
+    include_tags_and_aliases = true,
 });
 var obj = readBack["obj"]!;
 
@@ -128,7 +194,16 @@ try
     var leafClass = obj["leaf_object_class"]!.GetValue<string>();
     if (leafClass != "StringPrompt") throw new Exception($"leaf_object_class: {leafClass}");
     var versionIndex = obj["version_index"]!.GetValue<int>();
-    Console.WriteLine($"Read:      version={versionIndex} base_object_class=\"{baseClass}\" leaf_object_class=\"{leafClass}\"");
+
+    var tagsList = obj["tags"]?.AsArray().Select(t => t!.GetValue<string>()).ToList() ?? new List<string>();
+    var aliasesList = obj["aliases"]?.AsArray().Select(a => a!.GetValue<string>()).ToList() ?? new List<string>();
+    foreach (var t in tagsToAdd)
+        if (!tagsList.Contains(t))
+            throw new Exception($"tag \"{t}\" missing from [{string.Join(", ", tagsList)}]");
+    foreach (var a in aliasesToSet)
+        if (!aliasesList.Contains(a))
+            throw new Exception($"alias \"{a}\" missing from [{string.Join(", ", aliasesList)}]");
+    Console.WriteLine($"Read:      version={versionIndex} tags=[{string.Join(", ", tagsList.Select(t => $"\"{t}\""))}] aliases=[{string.Join(", ", aliasesList.Select(a => $"\"{a}\""))}]");
 
     // 3) Open a Call whose `inputs.prompt` is the Prompt's weave:// ref.
     const string question = "What is the capital of France?";
