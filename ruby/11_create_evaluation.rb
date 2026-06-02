@@ -311,7 +311,7 @@ puts "Aliased:   #{aliases_to_set.inspect} -> version #{eval_digest[0, 12]}…"
 # Read the Eval Object back (with tags + aliases) and assert every ref
 # + metadata field round-trips. Brief retry for read-after-write lag.
 read_back = nil
-5.times do
+8.times do
   body = post_json("/obj/read", {
     "project_id" => PROJECT_ID,
     "object_id" => eval_object_id,
@@ -319,11 +319,19 @@ read_back = nil
     "include_tags_and_aliases" => true,
   })
   read_back = body["obj"]
-  break if read_back
+  # Retry until the obj is visible AND tags + aliases have propagated.
+  # /obj/create returns synchronously but tags / aliases land via a
+  # separate propagation path; reading the obj before they catch up
+  # is racy.
+  if read_back
+    tags_now = read_back["tags"] || []
+    aliases_now = read_back["aliases"] || []
+    break if tags_to_add.all? { |t| tags_now.include?(t) } && aliases_to_set.all? { |a| aliases_now.include?(a) }
+  end
 
   sleep 1
 end
-abort "FAIL: Eval Object #{eval_object_id}:#{eval_digest} not visible after 5 reads" if read_back.nil?
+abort "FAIL: Eval Object #{eval_object_id}:#{eval_digest} not fully visible (tags=#{(read_back && read_back["tags"]).inspect} aliases=#{(read_back && read_back["aliases"]).inspect}) after 8 reads" if read_back.nil?
 
 val = read_back["val"]
 abort "_class_name: #{val["_class_name"].inspect}" unless val["_class_name"] == "Evaluation"

@@ -355,7 +355,7 @@ Console.WriteLine($"Aliased:   [{string.Join(", ", aliasesToSet.Select(a => $"\"
 // Read the Eval Object back (with tags + aliases) and assert every ref
 // + metadata field round-trips. Brief retry for read-after-write lag.
 JsonNode? readBack = null;
-for (var i = 0; i < 5; i++)
+for (var i = 0; i < 8; i++)
 {
     var r = await PostJson("/obj/read", new
     {
@@ -365,7 +365,16 @@ for (var i = 0; i < 5; i++)
         include_tags_and_aliases = true,
     });
     readBack = r["obj"];
-    if (readBack != null) break;
+    // Retry until the obj is visible AND tags + aliases have propagated.
+    // /obj/create returns synchronously but tags / aliases land via a
+    // separate propagation path; reading the obj before they catch up
+    // is racy.
+    if (readBack != null)
+    {
+        var tagsNow = readBack["tags"]?.AsArray().Select(t => t!.GetValue<string>()).ToList() ?? new List<string>();
+        var aliasesNow = readBack["aliases"]?.AsArray().Select(a => a!.GetValue<string>()).ToList() ?? new List<string>();
+        if (tagsToAdd.All(t => tagsNow.Contains(t)) && aliasesToSet.All(a => aliasesNow.Contains(a))) break;
+    }
     Thread.Sleep(1000);
 }
 

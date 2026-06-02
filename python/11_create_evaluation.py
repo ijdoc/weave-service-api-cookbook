@@ -303,7 +303,7 @@ print(f"Aliased:   {aliases_to_set} -> version {eval_digest[:12]}…")
 # Read the Eval Object back (with tags + aliases) and assert every ref
 # + metadata field round-trips. Brief retry for read-after-write lag.
 read_back = None
-for _ in range(5):
+for _ in range(8):
     r = post("/obj/read", {
         "project_id": PROJECT_ID,
         "object_id": eval_object_id,
@@ -311,11 +311,18 @@ for _ in range(5):
         "include_tags_and_aliases": True,
     })
     read_back = r.get("obj")
-    if read_back:
-        break
+    # Retry until the obj is visible AND tags + aliases have propagated.
+    # /obj/create returns synchronously but tags / aliases land via a
+    # separate propagation path; reading the obj before they catch up
+    # is racy.
+    if read_back is not None:
+        tags_now = read_back.get("tags") or []
+        aliases_now = read_back.get("aliases") or []
+        if all(t in tags_now for t in tags_to_add) and all(a in aliases_now for a in aliases_to_set):
+            break
     time.sleep(1)
 else:
-    sys.exit(f"FAIL: Eval Object {eval_object_id}:{eval_digest} not visible after 5 reads")
+    sys.exit(f"FAIL: Eval Object {eval_object_id}:{eval_digest} not fully visible (tags={read_back.get('tags') if read_back else None} aliases={read_back.get('aliases') if read_back else None}) after 8 reads")
 
 val = read_back["val"]
 assert val["_class_name"] == "Evaluation", f"_class_name: {val['_class_name']!r}"
