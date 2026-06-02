@@ -118,14 +118,25 @@ puts "Op filter:  #{evaluate_op_ref}"
 # 2) Find every root Call using this Evaluation.evaluate Op, then
 # narrow to runs against our Eval Object (any version) by matching
 # `inputs.self` against the object_id prefix.
-roots = post_ndjson("/calls/stream_query", {
-  "project_id" => PROJECT_ID,
-  "filter" => { "trace_roots_only" => true, "op_names" => [evaluate_op_ref] },
-  "limit" => 50,
-  "sort_by" => [{ "field" => "started_at", "direction" => "desc" }],
-})
-runs = roots.select { |c| ((c["inputs"] || {})["self"] || "").start_with?(eval_obj_prefix) }
-abort "FAIL: no eval runs against `#{EVAL_OBJECT_ID}` found. Run ruby/12_run_evaluation.rb first." if runs.empty?
+#
+# Retry loop: /calls/stream_query is eventually-consistent. A run
+# finished by recipe 12 a moment ago might not be indexed yet, and
+# in a brand-new project this would race recipe 13 to zero results.
+# Sleep + retry until at least one matching run shows up.
+runs = []
+8.times do
+  roots = post_ndjson("/calls/stream_query", {
+    "project_id" => PROJECT_ID,
+    "filter" => { "trace_roots_only" => true, "op_names" => [evaluate_op_ref] },
+    "limit" => 50,
+    "sort_by" => [{ "field" => "started_at", "direction" => "desc" }],
+  })
+  runs = roots.select { |c| ((c["inputs"] || {})["self"] || "").start_with?(eval_obj_prefix) }
+  break unless runs.empty?
+
+  sleep 1
+end
+abort "FAIL: no eval runs against `#{EVAL_OBJECT_ID}` found after 8 reads. Run ruby/12_run_evaluation.rb first." if runs.empty?
 puts "Found:      #{runs.length} run(s) against `#{EVAL_OBJECT_ID}` (any version)"
 
 

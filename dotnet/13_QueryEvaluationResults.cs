@@ -60,6 +60,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
+using System.Threading;
 using System.Threading.Tasks;
 
 JsonSerializerOptions jsonOptions = new() { TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
@@ -151,17 +152,28 @@ Console.WriteLine($"Op filter:  {evaluateOpRef}");
 // 2) Find every root Call using this Evaluation.evaluate Op, then
 // narrow to runs against our Eval Object (any version) by matching
 // `inputs.self` against the object_id prefix.
-var roots = await PostNdjson("/calls/stream_query", new
+//
+// Retry loop: /calls/stream_query is eventually-consistent. A run
+// finished by recipe 12 a moment ago might not be indexed yet, and
+// in a brand-new project this would race recipe 13 to zero results.
+// Sleep + retry until at least one matching run shows up.
+var runs = new List<JsonNode>();
+for (var i = 0; i < 8; i++)
 {
-    project_id = projectId,
-    filter = new { trace_roots_only = true, op_names = new[] { evaluateOpRef } },
-    limit = 50,
-    sort_by = new[] { new { field = "started_at", direction = "desc" } },
-});
-var runs = roots.Where(c => (c["inputs"]?["self"]?.GetValue<string?>() ?? "").StartsWith(evalObjPrefix)).ToList();
+    var roots = await PostNdjson("/calls/stream_query", new
+    {
+        project_id = projectId,
+        filter = new { trace_roots_only = true, op_names = new[] { evaluateOpRef } },
+        limit = 50,
+        sort_by = new[] { new { field = "started_at", direction = "desc" } },
+    });
+    runs = roots.Where(c => (c["inputs"]?["self"]?.GetValue<string?>() ?? "").StartsWith(evalObjPrefix)).ToList();
+    if (runs.Count > 0) break;
+    Thread.Sleep(1000);
+}
 if (runs.Count == 0)
 {
-    Console.Error.WriteLine($"FAIL: no eval runs against `{evalObjectId}` found. Run dotnet/12_RunEvaluation.cs first.");
+    Console.Error.WriteLine($"FAIL: no eval runs against `{evalObjectId}` found after 8 reads. Run dotnet/12_RunEvaluation.cs first.");
     return 1;
 }
 Console.WriteLine($"Found:      {runs.Count} run(s) against `{evalObjectId}` (any version)");

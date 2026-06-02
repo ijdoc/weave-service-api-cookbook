@@ -58,6 +58,7 @@ Run:
 import json
 import os
 import sys
+import time
 
 import requests
 
@@ -115,15 +116,25 @@ print(f"Op filter:  {evaluate_op_ref}")
 # 2) Find every root Call using this Evaluation.evaluate Op, then
 # narrow to runs against our Eval Object (any version) by matching
 # `inputs.self` against the object_id prefix.
-roots = post_ndjson("/calls/stream_query", {
-    "project_id": PROJECT_ID,
-    "filter": {"trace_roots_only": True, "op_names": [evaluate_op_ref]},
-    "limit": 50,
-    "sort_by": [{"field": "started_at", "direction": "desc"}],
-})
-runs = [c for c in roots if (c.get("inputs") or {}).get("self", "").startswith(eval_obj_prefix)]
-if not runs:
-    sys.exit(f"FAIL: no eval runs against `{EVAL_OBJECT_ID}` found. Run python/12_run_evaluation.py first.")
+#
+# Retry loop: /calls/stream_query is eventually-consistent. A run
+# finished by recipe 12 a moment ago might not be indexed yet, and
+# in a brand-new project this would race recipe 13 to zero results.
+# Sleep + retry until at least one matching run shows up.
+runs = []
+for _ in range(8):
+    roots = post_ndjson("/calls/stream_query", {
+        "project_id": PROJECT_ID,
+        "filter": {"trace_roots_only": True, "op_names": [evaluate_op_ref]},
+        "limit": 50,
+        "sort_by": [{"field": "started_at", "direction": "desc"}],
+    })
+    runs = [c for c in roots if (c.get("inputs") or {}).get("self", "").startswith(eval_obj_prefix)]
+    if runs:
+        break
+    time.sleep(1)
+else:
+    sys.exit(f"FAIL: no eval runs against `{EVAL_OBJECT_ID}` found after 8 reads. Run python/12_run_evaluation.py first.")
 print(f"Found:      {len(runs)} run(s) against `{EVAL_OBJECT_ID}` (any version)")
 
 
