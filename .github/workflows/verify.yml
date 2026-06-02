@@ -27,7 +27,21 @@ jobs:
           shopt -s nullglob
           for script in python/[0-9]*.py; do
             echo "::group::$script"
-            uv run "$script"
+            if [[ "$script" == python/13_* ]]; then
+              # Recipe 13 is read-only: a leaderboard view of every eval
+              # run against the Eval Object. Mirror its stdout into the
+              # job summary so the rendered table shows up on the workflow
+              # run page without digging into the log.
+              {
+                echo "### Recipe 13 (Python) — query evaluation results"
+                echo
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+              uv run "$script" | tee -a "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            else
+              uv run "$script"
+            fi
             echo "::endgroup::"
           done
 
@@ -43,7 +57,17 @@ jobs:
           shopt -s nullglob
           for script in ruby/[0-9]*.rb; do
             echo "::group::$script"
-            ruby "$script"
+            if [[ "$script" == ruby/13_* ]]; then
+              {
+                echo "### Recipe 13 (Ruby) — query evaluation results"
+                echo
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+              ruby "$script" | tee -a "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            else
+              ruby "$script"
+            fi
             echo "::endgroup::"
           done
 
@@ -59,6 +83,16 @@ jobs:
           shopt -s nullglob
           for script in dotnet/[0-9]*.cs; do
             echo "::group::$script"
-            dotnet run "$script"
+            if [[ "$script" == dotnet/13_* ]]; then
+              {
+                echo "### Recipe 13 (.NET) — query evaluation results"
+                echo
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+              dotnet run "$script" | tee -a "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            else
+              dotnet run "$script"
+            fi
             echo "::endgroup::"
           done
