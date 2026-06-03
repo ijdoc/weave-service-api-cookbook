@@ -6,7 +6,7 @@ For when you want to use Weave from a language without an SDK (e.g., Ruby, C#), 
 
 ## Status
 
-Work in progress. v1 covers the full tracing + evaluation flow across three languages. See the [v1 milestone](https://github.com/ijdoc/weave-service-api-cookbook/milestone/1) for scope.
+v1 is complete: the tracing + evaluation flow across Python, Ruby, and .NET, exercised end-to-end in CI against a live W&B project. See the [v1 milestone](https://github.com/ijdoc/weave-service-api-cookbook/milestone/1) for scope.
 
 ## What's in here
 
@@ -15,6 +15,24 @@ Work in progress. v1 covers the full tracing + evaluation flow across three lang
 - **`dotnet/`** — recipes in C# using `HttpClient` + `System.Text.Json`.
 
 Each language directory contains the same numbered recipes covering the same endpoints in the same order. Pick your language and read top to bottom.
+
+### Recipes (v1)
+
+| # | Topic | Headline endpoint(s) |
+|---|---|---|
+| 01 | Start + finish a single Call | `/call/start`, `/call/end` |
+| 02 | Query a Call by op_name | `/calls/stream_query` |
+| 03 | Parent + child Calls (RAG-style trace) | `/call/start` with `parent_id` |
+| 04 | Update a Call after finish | `/call/update` |
+| 05 | Add Feedback to a Call | `/feedback/create` |
+| 06 | Batch Feedback across Calls | `/feedback/create` (per-call note + scorer rows) |
+| 07 | Publish a Prompt + reference it from a Call (with tags + aliases) | `/v2/.../prompts`, `/objs/.../tags`, `/objs/.../aliases` |
+| 08 | Create a Model + use it in a trace | `/v2/.../models`, `/v2/.../ops` |
+| 09 | Scorer Op + score a Call (apply_scorer pattern) | `/file/create` + `/obj/create`, `/feedback/create` (`wandb.runnable.*`) |
+| 10 | Create a Dataset | `/v2/.../datasets`, `/table/query` |
+| 11 | Set up an Evaluation Object | `/file/create` + `/obj/create` (`builtin_object_class="Evaluation"`) |
+| 12 | Run an evaluation as a 4-level trace | `/call/start` × N + `/v2/.../eval_results/query` |
+| 13 | Query evaluation results | `/calls/stream_query` + `/v2/.../eval_results/query` |
 
 For language-agnostic concepts (Call, Trace, Evaluation Object, Evaluation Run, Feedback, scorer), see [`CONTEXT.md`](CONTEXT.md).
 
