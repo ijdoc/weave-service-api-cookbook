@@ -61,6 +61,18 @@ A recipe must:
 
 For Q&A-style traces, use `question` as the inputs key — matches recipes 01–04 and keeps simple examples readable across the cookbook. Recipes with structured inputs (retrieval queries, scorer payloads, evaluation rows) use shape-appropriate keys instead. Consistency across language ports of the same recipe is the hard rule; the Q&A default is a soft convention for the easy cases.
 
+### Content-addressed row ordering (Datasets)
+
+Dataset rows (recipe 10) are stored in a **content-addressed Table**, and the Table digest is shared across every language port that submits the same logical rows. The service content-addresses rows *independently of JSON key order*, so the digest is stable — but `POST /table/query` returns **each distinct stored byte-shape** of a row. If one port serializes a row's keys in a different order than the others, its byte-variant is appended to the shared Table, and **every** port's `len(rows)` assertion then over-counts (not just the offending one).
+
+So a recipe must emit object/row keys in a **deterministic order matching the other ports** (the canonical order is the one written in `python/`):
+
+- **Python / Ruby** — dict/hash literals preserve insertion order; just write the keys in canonical order.
+- **Go** — use a `struct` with fields in canonical order, **not** a `map` (`encoding/json` sorts map keys alphabetically).
+- **Java** — use a `LinkedHashMap` populated in canonical order, **not** `Map.of` (which has no defined iteration order).
+
+If a Table does get polluted, delete the Dataset objects that introduced the divergent rows (`POST /obj/delete {project_id, object_id, digests:[…]}`); there is no Table-level delete, so removing the owning Dataset versions is the lever, and the merged `/table/query` count drops back. (Tracked alongside the stale-asset cleanup work in [#28](https://github.com/ijdoc/weave-service-api-cookbook/issues/28).)
+
 ### Trace attribute convention
 
 Every Call a recipe creates must set these `attributes` on `/call/start`:
