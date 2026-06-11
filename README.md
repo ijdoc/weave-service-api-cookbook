@@ -8,11 +8,15 @@ For when you want to use Weave from a language without an SDK (e.g., Ruby, C#), 
 
 v1 is complete: the tracing + evaluation flow across Python, Ruby, and .NET, exercised end-to-end in CI against a live W&B project. See the [v1 milestone](https://github.com/ijdoc/weave-service-api-cookbook/milestone/1) for scope.
 
+Go (`golang/`) and Java (`java/`) ports are in progress, tracked under [#43](https://github.com/ijdoc/weave-service-api-cookbook/issues/43) — each recipe lands once it runs green in CI for that language.
+
 ## What's in here
 
 - **`python/`** — recipes in Python using `requests`.
 - **`ruby/`** — recipes in Ruby using `Net::HTTP`.
 - **`dotnet/`** — recipes in C# using `HttpClient` + `System.Text.Json`.
+- **`golang/`** — recipes in Go using `net/http` + `encoding/json` (stdlib only).
+- **`java/`** — recipes in Java using `java.net.http.HttpClient` + Jackson, run via [jbang](https://www.jbang.dev/).
 
 Each language directory contains the same numbered recipes covering the same endpoints in the same order. Pick your language and read top to bottom.
 
