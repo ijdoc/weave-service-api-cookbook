@@ -96,3 +96,57 @@ jobs:
             fi
             echo "::endgroup::"
           done
+
+  golang:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: Run Go recipes
+        run: |
+          shopt -s nullglob
+          for script in golang/[0-9]*.go; do
+            echo "::group::$script"
+            if [[ "$script" == golang/13_* ]]; then
+              {
+                echo "### Recipe 13 (Go) — query evaluation results"
+                echo
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+              go run "$script" | tee -a "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            else
+              go run "$script"
+            fi
+            echo "::endgroup::"
+          done
+
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: jbangdev/setup-jbang@main
+      - name: Run Java recipes
+        run: |
+          shopt -s nullglob
+          for script in java/[0-9]*.java; do
+            echo "::group::$script"
+            if [[ "$script" == java/13_* ]]; then
+              {
+                echo "### Recipe 13 (Java) — query evaluation results"
+                echo
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+              jbang "$script" | tee -a "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            else
+              jbang "$script"
+            fi
+            echo "::endgroup::"
+          done
